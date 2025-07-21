@@ -8,4 +8,6 @@ azure-identity>=1.23.0
 azure-mgmt-compute>=34.1.0
 azure-mgmt-resource>=24.0.0
 azure-mgmt-storage>=23.0.0
+azure-mgmt-network>=21.0.0
+azure-mgmt-sql>=3.0.1
 azure-data-tables>=12.7.0

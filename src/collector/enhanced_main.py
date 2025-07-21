@@ -13,6 +13,9 @@ import click
 from botocore.exceptions import ClientError
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.compute import ComputeManagementClient
+from azure.mgmt.storage import StorageManagementClient
+from azure.mgmt.sql import SqlManagementClient
+from azure.mgmt.network import NetworkManagementClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -638,6 +641,49 @@ class AzureInventoryCollector:
         self.subscription_id = subscription_id
         self.credential = DefaultAzureCredential()
         self.compute_client = ComputeManagementClient(self.credential, subscription_id)
+        self.storage_client = StorageManagementClient(self.credential, subscription_id)
+        self.sql_client = SqlManagementClient(self.credential, subscription_id)
+        self.network_client = NetworkManagementClient(self.credential, subscription_id)
+
+        # Simplified cost estimates
+        self.cost_estimates = {
+            'vm': {
+                'Standard_B1s': 0.02,
+                'Standard_D2_v2': 0.096,
+                'default': 0.05
+            },
+            'storage': {
+                'Standard_LRS': 0.02,
+                'Standard_GRS': 0.024,
+                'Premium_LRS': 0.15,
+                'default': 0.02
+            },
+            'sql': {
+                'Basic': 0.005,
+                'S0': 0.015,
+                'S1': 0.03,
+                'S2': 0.06,
+                'default': 0.02
+            }
+        }
+
+    def estimate_vm_cost(self, vm) -> float:
+        size = getattr(vm.hardware_profile, 'vm_size', 'default')
+        hourly = self.cost_estimates['vm'].get(size, self.cost_estimates['vm']['default'])
+        return hourly * 24 * 30
+
+    def estimate_storage_cost(self, account) -> float:
+        sku = getattr(account.sku, 'name', 'default') if hasattr(account, 'sku') else 'default'
+        gb_cost = self.cost_estimates['storage'].get(sku, self.cost_estimates['storage']['default'])
+        return gb_cost * 100  # assume 100 GB per account
+
+    def estimate_sql_cost(self, db) -> float:
+        tier = getattr(db.sku, 'name', 'default') if hasattr(db, 'sku') else 'default'
+        hourly = self.cost_estimates['sql'].get(tier, self.cost_estimates['sql']['default'])
+        return hourly * 24 * 30
+
+    def estimate_network_cost(self, _resource) -> float:
+        return 0.0
 
     def collect_virtual_machines(self) -> list[dict]:
         resources = []
@@ -652,12 +698,91 @@ class AzureInventoryCollector:
                     'vm_size': getattr(vm.hardware_profile, 'vm_size', None),
                     'os_type': getattr(vm.storage_profile.os_disk, 'os_type', None).value if vm.storage_profile and vm.storage_profile.os_disk else None,
                     'tags': vm.tags or {}
-                }
+                },
+                'estimated_monthly_cost': self.estimate_vm_cost(vm)
+            })
+        return resources
+
+    def collect_storage_accounts(self) -> list[dict]:
+        resources = []
+        for sa in self.storage_client.storage_accounts.list():
+            resources.append({
+                'resource_type': 'storage_account',
+                'resource_id': sa.id,
+                'account_id': self.subscription_id,
+                'region': sa.location,
+                'timestamp': datetime.now(UTC).isoformat(),
+                'attributes': {
+                    'sku': getattr(sa.sku, 'name', None),
+                    'kind': sa.kind,
+                    'tags': sa.tags or {}
+                },
+                'estimated_monthly_cost': self.estimate_storage_cost(sa)
+            })
+        return resources
+
+    def collect_sql_databases(self) -> list[dict]:
+        resources = []
+        for server in self.sql_client.servers.list():
+            parts = server.id.split('/')
+            rg = parts[parts.index('resourceGroups') + 1]
+            for db in self.sql_client.databases.list_by_server(rg, server.name):
+                if db.name.lower() in {'master', 'tempdb', 'model', 'msdb'}:
+                    continue
+                resources.append({
+                    'resource_type': 'sql_database',
+                    'resource_id': db.id,
+                    'account_id': self.subscription_id,
+                    'region': server.location,
+                    'timestamp': datetime.now(UTC).isoformat(),
+                    'attributes': {
+                        'server': server.name,
+                        'edition': db.edition,
+                        'sku': getattr(db.sku, 'name', None),
+                        'tags': server.tags or {}
+                    },
+                    'estimated_monthly_cost': self.estimate_sql_cost(db)
+                })
+        return resources
+
+    def collect_network_resources(self) -> list[dict]:
+        resources = []
+        for vnet in self.network_client.virtual_networks.list_all():
+            resources.append({
+                'resource_type': 'virtual_network',
+                'resource_id': vnet.id,
+                'account_id': self.subscription_id,
+                'region': vnet.location,
+                'timestamp': datetime.now(UTC).isoformat(),
+                'attributes': {
+                    'name': vnet.name,
+                    'address_space': getattr(vnet.address_space, 'address_prefixes', []),
+                    'tags': vnet.tags or {}
+                },
+                'estimated_monthly_cost': self.estimate_network_cost(vnet)
+            })
+        for nsg in self.network_client.network_security_groups.list_all():
+            resources.append({
+                'resource_type': 'network_security_group',
+                'resource_id': nsg.id,
+                'account_id': self.subscription_id,
+                'region': nsg.location,
+                'timestamp': datetime.now(UTC).isoformat(),
+                'attributes': {
+                    'name': nsg.name,
+                    'tags': nsg.tags or {}
+                },
+                'estimated_monthly_cost': self.estimate_network_cost(nsg)
             })
         return resources
 
     def collect_inventory(self) -> list[dict]:
-        return self.collect_virtual_machines()
+        resources = []
+        resources.extend(self.collect_virtual_machines())
+        resources.extend(self.collect_storage_accounts())
+        resources.extend(self.collect_sql_databases())
+        resources.extend(self.collect_network_resources())
+        return resources
 
 
 @click.command()
