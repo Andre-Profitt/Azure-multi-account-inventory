@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 param mspTenantId string
 param functionPrincipalId string
+param principalTenantId string
 
 resource customRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' = {
   name: guid(subscription().id, 'InventoryReaderRole')
@@ -28,12 +29,13 @@ resource registrationDef 'Microsoft.ManagedServices/registrationDefinitions@2022
     registrationDefinitionName: 'Inventory Delegation'
     description: 'Delegation for MSP inventory function'
     managedByTenantId: mspTenantId
-    authorizations: [
-      {
-        principalId: functionPrincipalId
-        roleDefinitionId: customRole.id
-      }
-    ]
+      authorizations: [
+        {
+          principalId: functionPrincipalId
+          principalTenantId: principalTenantId
+          roleDefinitionId: customRole.id
+        }
+      ]
   }
 }
 
