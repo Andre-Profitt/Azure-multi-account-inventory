@@ -1,0 +1,9 @@
+{
+  "subscriptions": {
+    "prod": { "subscription_id": "00000000-0000-0000-0000-000000000000" },
+    "dev": { "subscription_id": "11111111-1111-1111-1111-111111111111" }
+  },
+  "resource_types": ["Microsoft.Compute/virtualMachines"],
+  "tag_filters": {"Environment": "Production"},
+  "excluded_regions": ["chinaeast2"]
+}

@@ -23,6 +23,20 @@ A serverless solution for collecting and analyzing cloud resources across multip
                      └─────────────────┘                         └──────────────┘
 ```
 
+Azure deployments use Cosmos DB and Lighthouse delegation:
+
+```
+┌────────────┐     ┌────────────────┐     ┌──────────────┐
+│ Timer Job  │───▶│ Azure Function  │───▶│   Cosmos DB   │
+└────────────┘     └──────┬─────────┘     └──────┬───────┘
+                          │                     │
+                          │ Uses Lighthouse     │
+                          ▼                     ▼
+                   ┌─────────────┐     ┌───────────────┐
+                   │ ARG / Cost  │     │  Log Analytics │
+                   └─────────────┘     └───────────────┘
+```
+
 See [FEATURES](docs/FEATURES.md) for full capabilities and [COST_ANALYSIS](docs/COST_ANALYSIS.md) for optimization details. Usage examples are available in [USAGE_EXAMPLES](docs/USAGE_EXAMPLES.md).
 
 ## Quick Start
@@ -80,6 +94,23 @@ To inventory Azure resources, set `CLOUD_PROVIDER=azure` and provide the Azure s
 ./scripts/deploy-azure.sh
 ```
 This script creates the Function App, Cosmos DB, and Event Grid trigger. Refer to the [deployment checklist](docs/DEPLOYMENT_CHECKLIST.md) for the full list of required roles and variables.
+
+### Azure Quick Start
+```bash
+cp config/azure_subscriptions.json config/azure_subscriptions.json
+export COSMOS_URL="https://your-account.documents.azure.com:443/"
+POETRY run python -m src.azure_collect --config config/azure_subscriptions.json
+```
+The collector supports filters defined in `azure_subscriptions.json` and produces
+the same JSON schema as the AWS collector.
+
+Example Resource Graph query to list unattached disks:
+`Resources | where type =~ 'Microsoft.Compute/disks' | where properties.diskState == 'Unattached' | where properties.timeCreated < ago(30d)`
+
+Sample payload for Cost Management queries:
+```json
+{"type": "Usage", "dataSet": {"granularity": "Daily"}, "timeframe": "MonthToDate"}
+```
 
 ## Running Tests
 Install development requirements and run:
