@@ -111,10 +111,11 @@ class AzureResourceGraphCollector:
 async def async_main() -> None:
     parser = argparse.ArgumentParser(description="Azure Resource Graph collector")
     parser.add_argument("--config", required=True, help="Path to azure_subscriptions.json")
-    parser.add_argument("--log-level", default="INFO", help="Logging level")
+    parser.add_argument("--log-level", help="Logging level")
     args = parser.parse_args()
-
-    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(args.log_level.upper()))
+    log_level: str | None = args.log_level
+    level_name = (log_level or os.getenv("LOG_LEVEL") or "INFO").upper()
+    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(level_name))
     collector = AzureResourceGraphCollector(args.config)
     resources = await collector.collect()
     logger.info("collected", count=len(resources))
