@@ -617,12 +617,19 @@ def main(action, resource_type, department, region, output, days, format):
                 # Show first few items in table format
                 table_data = []
                 for item in items[:20]:
+                    attrs = item.get('attributes', {})
+                    state = (
+                        item.get('state')
+                        or item.get('status')
+                        or attrs.get('state')
+                        or attrs.get('status', 'active')
+                    )
                     table_data.append([
                         item.get('resource_id', '')[:40],
                         item.get('resource_type', ''),
                         item.get('department') or item.get('account_name', ''),
                         item.get('region', ''),
-                        item.get('state') or item.get('status') or attrs.get('state') or attrs.get('status', 'active') if (attrs := item.get('attributes', {})) else 'active'
+                        state
                     ])
                 print(tabulate(table_data, headers=['Resource ID', 'Type', 'Dept', 'Region', 'State'], tablefmt='grid'))
                 if len(items) > 20:
