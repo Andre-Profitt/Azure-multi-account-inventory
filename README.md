@@ -110,3 +110,18 @@ EXTERNAL_ID=inventory-collector
   "collection_settings": {"parallel_regions": 5, "timeout_seconds": 300}
 }
 ```
+
+For Azure deployments, create `config/azure_subscriptions.json`:
+```json
+{
+  "subscriptions": {
+    "production": {
+      "subscription_id": "11111111-2222-3333-4444-555555555555",
+      "enabled": true
+    }
+  },
+  "resource_types": ["Microsoft.Compute/virtualMachines"],
+  "tag_filters": {"Environment": ["Prod"]},
+  "excluded_regions": ["southindia"]
+}
+```
