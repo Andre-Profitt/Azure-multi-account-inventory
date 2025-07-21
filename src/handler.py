@@ -1,22 +1,25 @@
 import json
 import os
 import traceback
-from datetime import timezone
-from datetime import datetime
-
-UTC = timezone.utc
+from datetime import UTC, datetime
+from typing import Any
 
 import boto3
+import structlog
 
 from collector.enhanced_main import AWSInventoryCollector, AzureInventoryCollector
-from query.enhanced_inventory_query import InventoryQuery, AzureInventoryQuery
+from common.logger import configure_logging
+from query.enhanced_inventory_query import AzureInventoryQuery, InventoryQuery
+
+configure_logging()
+logger = structlog.get_logger(__name__)
 
 # AWS clients will be initialized when needed
 sns = None
 cloudwatch = None
 s3 = None
 
-def get_clients():
+def get_clients() -> tuple[Any, Any, Any]:
     """Initialize AWS clients if not already done"""
     global sns, cloudwatch, s3
     if sns is None:
@@ -27,7 +30,7 @@ def get_clients():
         s3 = boto3.client('s3')
     return sns, cloudwatch, s3
 
-def send_metric(metric_name: str, value: float, unit: str = 'Count'):
+def send_metric(metric_name: str, value: float, unit: str = 'Count') -> None:
     """Send custom metric to CloudWatch"""
     try:
         _, cloudwatch, _ = get_clients()
@@ -43,9 +46,9 @@ def send_metric(metric_name: str, value: float, unit: str = 'Count'):
             ]
         )
     except Exception as e:
-        print(f"Failed to send metric {metric_name}: {str(e)}")
+        logger.warning("Failed to send metric", metric=metric_name, error=str(e))
 
-def send_notification(subject: str, message: str):
+def send_notification(subject: str, message: str) -> None:
     """Send SNS notification"""
     topic_arn = os.environ.get('SNS_TOPIC_ARN')
     if topic_arn:
@@ -57,16 +60,16 @@ def send_notification(subject: str, message: str):
                 Message=message
             )
         except Exception as e:
-            print(f"Failed to send notification: {str(e)}")
+            logger.warning("Failed to send notification", error=str(e))
 
-def lambda_handler(event, context):
+def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """Enhanced Lambda handler for scheduled collection"""
     start_time = datetime.now(UTC)
     action = event.get('action', 'collect')
 
     # Log invocation
-    print(f"Starting inventory {action} at {start_time}")
-    print(f"Event: {json.dumps(event)}")
+    logger.info("Starting inventory", action=action, start=str(start_time))
+    logger.debug("Event", event=event)
 
     try:
         if action == 'collect':
@@ -91,7 +94,7 @@ def lambda_handler(event, context):
             })
         }
 
-def handle_collection(event, context, start_time):
+def handle_collection(event: dict[str, Any], _context: Any, start_time: datetime) -> dict[str, Any]:
     """Handle inventory collection"""
     # Initialize collector
     if os.environ.get('CLOUD_PROVIDER') == 'azure':
@@ -152,9 +155,9 @@ def handle_collection(event, context, start_time):
         'total_resources': resources_collected,
         'resources_by_type': resources_by_type,
         'failed_accounts': failed_accounts,
-        'total_monthly_cost': total_cost
+        'total_monthly_cost': total_cost,
     }
-    print(f"Collection completed: {json.dumps(summary)}")
+    logger.info("Collection completed", summary=summary)
 
     # Send notification if there were failures
     if failed_accounts > 0:
@@ -191,9 +194,9 @@ Please check CloudWatch logs for more details."""
         })
     }
 
-def handle_cost_analysis(event, context):
+def handle_cost_analysis(_event: dict[str, Any], _context: Any) -> dict[str, Any]:
     """Handle cost analysis and reporting"""
-    print("Starting cost analysis")
+    logger.info("Starting cost analysis")
 
     if os.environ.get('CLOUD_PROVIDER') == 'azure':
         table_url = os.environ.get('AZURE_TABLE_URL')
@@ -256,7 +259,9 @@ Please review the cost analysis dashboard for more details."""
             ContentType='application/json'
         )
 
-        print(f"Cost analysis completed. Report saved to s3://{report_bucket}/{report_key}")
+        logger.info(
+            "Cost analysis completed", report_location=f"s3://{report_bucket}/{report_key}"
+        )
 
     return {
         'statusCode': 200,
@@ -267,9 +272,9 @@ Please review the cost analysis dashboard for more details."""
         })
     }
 
-def handle_security_check(event, context):
+def handle_security_check(_event: dict[str, Any], _context: Any) -> dict[str, Any]:
     """Handle security compliance check"""
-    print("Starting security compliance check")
+    logger.info("Starting security compliance check")
 
     if os.environ.get('CLOUD_PROVIDER') == 'azure':
         table_url = os.environ.get('AZURE_TABLE_URL')
@@ -353,9 +358,9 @@ Please review these resources and apply appropriate security measures."""
         })
     }
 
-def handle_cleanup(event, context):
+def handle_cleanup(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     """Handle stale resource cleanup"""
-    print("Starting stale resource check")
+    logger.info("Starting stale resource check")
 
     if os.environ.get('CLOUD_PROVIDER') == 'azure':
         table_url = os.environ.get('AZURE_TABLE_URL')
@@ -384,17 +389,19 @@ def handle_cleanup(event, context):
             for rtype, count in sorted(stale_by_type.items(), key=lambda x: x[1], reverse=True)
         ])
 
+        details = chr(10).join(
+            [
+                f"- {r['resource_id']} ({r['resource_type']}) - {r['age_days']} days old"
+                for r in stale_resources[:10]
+            ]
+        )
         send_notification(
             subject=f"AWS Cleanup Alert - {len(stale_resources)} stale resources found",
-            message=f"""Found {len(stale_resources)} resources that haven't been modified in over {days} days.
-
-Breakdown by Type:
-{breakdown}
-
-Top Stale Resources:
-{chr(10).join([f"- {r['resource_id']} ({r['resource_type']}) - {r['age_days']} days old" for r in stale_resources[:10]])}
-
-Consider reviewing these resources for potential cleanup."""
+            message=(
+                f"Found {len(stale_resources)} resources that haven't been modified in over {days} days.\n\n"
+                f"Breakdown by Type:\n{breakdown}\n\nTop Stale Resources:\n{details}\n\n"
+                "Consider reviewing these resources for potential cleanup."
+            ),
         )
 
     return {
@@ -406,10 +413,10 @@ Consider reviewing these resources for potential cleanup."""
         })
     }
 
-def handle_error(error, action, context):
+def handle_error(error: Exception, action: str, context: Any) -> None:
     """Handle and report errors"""
     error_message = f"{action} failed: {str(error)}\n{traceback.format_exc()}"
-    print(error_message)
+    logger.error(error_message)
 
     # Send failure metric
     send_metric('CollectionSuccess', 0)
@@ -427,3 +434,5 @@ Please check CloudWatch logs for full stack trace.
 Function: {context.function_name}
 Request ID: {context.aws_request_id}"""
     )
+
+

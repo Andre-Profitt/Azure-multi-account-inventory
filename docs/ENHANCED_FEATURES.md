@@ -392,7 +392,7 @@ aws lambda invoke \
 
 ### Debug Mode
 
-Enable debug logging:
+Enable debug logging via the ``LOG_LEVEL`` environment variable (default ``INFO``):
 ```python
 # In Lambda environment variable
 LOG_LEVEL=DEBUG
