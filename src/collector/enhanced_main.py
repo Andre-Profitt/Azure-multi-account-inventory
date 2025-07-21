@@ -11,6 +11,8 @@ from decimal import Decimal
 import boto3
 import click
 from botocore.exceptions import ClientError
+from azure.identity import DefaultAzureCredential
+from azure.mgmt.compute import ComputeManagementClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -629,6 +631,35 @@ class AWSInventoryCollector:
         return all_resources
 
 
+class AzureInventoryCollector:
+    """Basic Azure Inventory Collector"""
+
+    def __init__(self, subscription_id: str):
+        self.subscription_id = subscription_id
+        self.credential = DefaultAzureCredential()
+        self.compute_client = ComputeManagementClient(self.credential, subscription_id)
+
+    def collect_virtual_machines(self) -> list[dict]:
+        resources = []
+        for vm in self.compute_client.virtual_machines.list_all():
+            resources.append({
+                'resource_type': 'vm',
+                'resource_id': vm.id,
+                'account_id': self.subscription_id,
+                'region': vm.location,
+                'timestamp': datetime.now(UTC).isoformat(),
+                'attributes': {
+                    'vm_size': getattr(vm.hardware_profile, 'vm_size', None),
+                    'os_type': getattr(vm.storage_profile.os_disk, 'os_type', None).value if vm.storage_profile and vm.storage_profile.os_disk else None,
+                    'tags': vm.tags or {}
+                }
+            })
+        return resources
+
+    def collect_inventory(self) -> list[dict]:
+        return self.collect_virtual_machines()
+
+
 @click.command()
 @click.option('--config', default='config/accounts.json', help='Config file path')
 @click.option('--table', default='aws-inventory', help='DynamoDB table name')
@@ -640,7 +671,11 @@ def main(config, table, dry_run, resource_types, debug):
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    collector = AWSInventoryCollector(table_name=table)
+    if os.environ.get('CLOUD_PROVIDER') == 'azure':
+        subscription_id = os.environ.get('AZURE_SUBSCRIPTION_ID')
+        collector = AzureInventoryCollector(subscription_id)
+    else:
+        collector = AWSInventoryCollector(table_name=table)
     collector.load_config(config)
 
     if resource_types:

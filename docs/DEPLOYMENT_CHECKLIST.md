@@ -4,10 +4,12 @@
 
 - [ ] **AWS CLI configured** with appropriate credentials
 - [ ] **Terraform installed** (v1.0+) if using Terraform
+- [ ] **Azure CLI installed** (v2.55+)
 - [ ] **Python 3.9+** installed
 - [ ] **Central account ID** noted
 - [ ] **Target account IDs** collected
 - [ ] **Deployment method chosen**: Terraform or CloudFormation
+- [ ] **Azure deployment scripts reviewed**
 
 ## Phase 1: Target Account Setup
 
@@ -47,6 +49,17 @@ aws cloudformation deploy \
 2. **Build Lambda packages**:
    ```bash
    make build-lambda
+   ```
+
+### Azure Deployment
+
+1. **Login to Azure**:
+   ```bash
+   az login
+   ```
+2. **Deploy Bicep templates**:
+   ```bash
+   az deployment sub create -f infrastructure/main.bicep -l eastus
    ```
 
 3. **Deploy infrastructure**:
