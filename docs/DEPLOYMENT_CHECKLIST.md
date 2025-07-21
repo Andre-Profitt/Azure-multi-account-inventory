@@ -59,7 +59,12 @@ aws cloudformation deploy \
    ```
 2. **Deploy Bicep templates**:
    ```bash
-   az deployment sub create -f infrastructure/main.bicep -l eastus
+   # Deploy the main Azure resources
+   az deployment sub create \
+     --location eastus \
+     --template-file infrastructure/main.bicep
+   # or simply run the helper script
+   ./deploy_azure.sh
    ```
 
 3. **Deploy infrastructure**:
