@@ -149,10 +149,24 @@ For Azure deployments, create `config/azure_subscriptions.json`:
     "production": {
       "subscription_id": "11111111-2222-3333-4444-555555555555",
       "enabled": true
+    },
+    "development": {
+      "subscription_id": "66666666-7777-8888-9999-000000000000",
+      "enabled": true
     }
   },
-  "resource_types": ["Microsoft.Compute/virtualMachines"],
-  "tag_filters": {"Environment": ["Prod"]},
-  "excluded_regions": ["southindia"]
+  "resource_types": [
+    "Microsoft.Compute/virtualMachines",
+    "Microsoft.Storage/storageAccounts",
+    "Microsoft.Web/sites"
+  ],
+  "tag_filters": {
+    "Environment": ["Prod", "Dev"],
+    "Owner": ["TeamA"]
+  },
+  "excluded_regions": [
+    "southindia",
+    "germanynorth"
+  ]
 }
 ```
