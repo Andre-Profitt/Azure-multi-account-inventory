@@ -7,8 +7,12 @@ from datetime import datetime
 UTC = timezone.utc
 
 import boto3
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 from collector.enhanced_main import AWSInventoryCollector, AzureInventoryCollector
+from collector.azure_policy_client import AzurePolicyClient
 from query.enhanced_inventory_query import InventoryQuery, AzureInventoryQuery
 
 # AWS clients will be initialized when needed
@@ -119,6 +123,12 @@ def handle_collection(event, context, start_time):
 
     # Run collection
     inventory = collector.collect_inventory()
+
+    if event.get('security') and os.environ.get('CLOUD_PROVIDER') == 'azure':
+        policy_client = AzurePolicyClient(subscription_id, table_url)
+        findings = policy_client.fetch_non_compliant()
+        policy_client.save_findings(findings)
+        logger.info("azure_security_findings", count=len(findings))
 
     # Calculate metrics
     duration = (datetime.now(UTC) - start_time).total_seconds()

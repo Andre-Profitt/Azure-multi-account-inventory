@@ -16,6 +16,7 @@ from azure.mgmt.compute import ComputeManagementClient
 from azure.mgmt.sql import SqlManagementClient
 from azure.mgmt.core.tools import parse_resource_id
 from azure.data.tables import TableServiceClient
+from .azure_policy_client import AzurePolicyClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -734,8 +735,9 @@ class AzureInventoryCollector:
 @click.option('--table', default='aws-inventory', help='DynamoDB table name')
 @click.option('--dry-run', is_flag=True, help='Show what would be collected')
 @click.option('--resource-types', help='Comma-separated resource types to collect (ec2,rds,s3,lambda)')
+@click.option('--security', is_flag=True, help='Collect security findings')
 @click.option('--debug', is_flag=True, help='Enable debug logging')
-def main(config, table, dry_run, resource_types, debug):
+def main(config, table, dry_run, resource_types, security, debug):
     """AWS Multi-Account Inventory Collector"""
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
@@ -759,6 +761,12 @@ def main(config, table, dry_run, resource_types, debug):
         return
 
     resources = collector.collect_inventory()
+
+    if security and os.environ.get('CLOUD_PROVIDER') == 'azure':
+        table_url = os.environ.get('AZURE_TABLE_URL')
+        policy_client = AzurePolicyClient(subscription_id, table_url)
+        findings = policy_client.fetch_non_compliant()
+        policy_client.save_findings(findings)
 
     # Print summary
     summary = {}
