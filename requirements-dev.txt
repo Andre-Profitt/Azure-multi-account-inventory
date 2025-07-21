@@ -39,5 +39,8 @@ cfn-lint>=0.83.0
 checkov>=3.0.0
 
 # AWS Tools
-awscli>=1.29.0
-azure-cli>=2.55.0
+# awscli is optional and slows down installation
+# awscli>=1.29.0
+# azure-cli pinned to 2.55.0 conflicts with azure-cosmos 4.x
+# Commented out to allow dev dependency installation without version conflicts
+# azure-cli>=2.55.0
