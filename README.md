@@ -22,6 +22,18 @@ A serverless solution for collecting and analyzing cloud resources across multip
                      │     Bucket      │                         │    Slack     │
                      └─────────────────┘                         └──────────────┘
 ```
+```
+┌────────────┐     ┌────────────────┐     ┌─────────────┐     ┌──────────────┐
+│ Event Grid │───▶│ Azure Function  │───▶│   Cosmos DB  │───▶│ Azure Monitor │
+│  (Timer)   │    │   Collector     │    │   Inventory  │    │   Metrics     │
+└────────────┘     └───────┬────────┘     └───────┬─────┘     └──────────────┘
+                           │                    │
+                           │ via Azure Lighthouse
+                           ▼                    ▼
+                    ┌──────────────┐      ┌──────────────┐
+                    │ Subscriptions│      │ Log Groups   │
+                    └──────────────┘      └──────────────┘
+```
 
 See [FEATURES](docs/FEATURES.md) for full capabilities and [COST_ANALYSIS](docs/COST_ANALYSIS.md) for optimization details. Usage examples are available in [USAGE_EXAMPLES](docs/USAGE_EXAMPLES.md).
 
@@ -59,10 +71,18 @@ aws lambda invoke --function-name aws-inventory-collector --payload '{"action": 
 cat response.json
 ```
 
+### Azure Quick Start
+```bash
+az login
+az account set --subscription <subscription>
+./scripts/deploy-azure.sh
+```
+
 ### Local Usage
 ```bash
 make collect   # run collection locally
 make query     # show inventory summary
+python src/collector/enhanced_main.py --config config/accounts.json
 ```
 
 For advanced configuration and Azure setup, consult the [deployment checklist](docs/DEPLOYMENT_CHECKLIST.md).
@@ -97,6 +117,14 @@ SNS_TOPIC_ARN=arn:aws:sns:region:account:topic
 REPORT_BUCKET=aws-inventory-reports
 EXTERNAL_ID=inventory-collector
 ```
+Azure specific variables:
+```bash
+AZURE_SUBSCRIPTION_ID=<subscription>
+AZURE_RESOURCE_GROUP=inventory-rg
+AZURE_COSMOS_DB_NAME=inventory
+AZURE_FUNCTION_APP=inventory-func
+AZURE_LOCATION=eastus
+```
 
 ## Configuration File Example
 `config/accounts.json` defines the accounts and settings:
@@ -108,5 +136,32 @@ EXTERNAL_ID=inventory-collector
   "resource_types": ["ec2", "rds", "s3", "lambda"],
   "excluded_regions": ["ap-south-2"],
   "collection_settings": {"parallel_regions": 5, "timeout_seconds": 300}
+}
+```
+
+## Azure Examples
+
+### Resource Graph Query
+Find unattached disks older than 30 days:
+```kusto
+Resources
+| where type =~ 'microsoft.compute/disks'
+| where properties.diskState == 'Unattached'
+| where properties.timeCreated <= ago(30d)
+| project name, resourceGroup, location, properties.diskSizeGb
+```
+
+### Cost Management Payload
+Example request body for the Cost Management API:
+```json
+{
+  "type": "Usage",
+  "timeframe": "MonthToDate",
+  "dataset": {
+    "granularity": "Daily",
+    "aggregation": {
+      "totalCost": {"name": "Cost", "function": "Sum"}
+    }
+  }
 }
 ```
