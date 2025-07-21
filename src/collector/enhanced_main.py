@@ -13,6 +13,7 @@ import click
 from botocore.exceptions import ClientError
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.compute import ComputeManagementClient
+from azure.data.tables import TableServiceClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -634,10 +635,13 @@ class AWSInventoryCollector:
 class AzureInventoryCollector:
     """Basic Azure Inventory Collector"""
 
-    def __init__(self, subscription_id: str):
+    def __init__(self, subscription_id: str, table_url: str | None = None,
+                 table_name: str | None = None):
         self.subscription_id = subscription_id
         self.credential = DefaultAzureCredential()
         self.compute_client = ComputeManagementClient(self.credential, subscription_id)
+        self.table_url = table_url or os.environ.get('AZURE_TABLE_URL')
+        self.table_name = table_name or os.environ.get('AZURE_TABLE_NAME', 'inventory')
 
     def collect_virtual_machines(self) -> list[dict]:
         resources = []
@@ -656,8 +660,33 @@ class AzureInventoryCollector:
             })
         return resources
 
+    def save_to_table(self, resources: list[dict]):
+        """Persist collected resources to Azure Table Storage."""
+        if not resources or not self.table_url:
+            return
+
+        service = TableServiceClient(endpoint=self.table_url, credential=self.credential)
+        table = service.get_table_client(self.table_name)
+
+        for resource in resources:
+            entity = {
+                'PartitionKey': resource.get('account_id', 'unknown'),
+                'RowKey': resource.get('resource_id').replace('/', '_'),
+                'resource_type': resource.get('resource_type'),
+                'account_name': resource.get('account_name'),
+                'region': resource.get('region'),
+                'timestamp': resource.get('timestamp'),
+                'estimated_monthly_cost': resource.get('estimated_monthly_cost', 0),
+                'attributes': json.dumps(resource.get('attributes', {}))
+            }
+            table.upsert_entity(entity)
+
+        logger.info(f"Saved {len(resources)} resources to Azure Table {self.table_name}")
+
     def collect_inventory(self) -> list[dict]:
-        return self.collect_virtual_machines()
+        resources = self.collect_virtual_machines()
+        self.save_to_table(resources)
+        return resources
 
 
 @click.command()

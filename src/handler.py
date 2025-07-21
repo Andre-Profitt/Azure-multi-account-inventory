@@ -96,7 +96,9 @@ def handle_collection(event, context, start_time):
     # Initialize collector
     if os.environ.get('CLOUD_PROVIDER') == 'azure':
         subscription_id = os.environ.get('AZURE_SUBSCRIPTION_ID')
-        collector = AzureInventoryCollector(subscription_id)
+        table_url = os.environ.get('AZURE_TABLE_URL')
+        table_name = os.environ.get('AZURE_TABLE_NAME', 'inventory')
+        collector = AzureInventoryCollector(subscription_id, table_url, table_name)
     else:
         collector = AWSInventoryCollector(
             table_name=os.environ.get('DYNAMODB_TABLE_NAME', 'aws-inventory')
