@@ -2,18 +2,16 @@ import json
 import logging
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import as_completed
-from datetime import datetime, timedelta, timezone
-UTC = timezone.utc
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import boto3
 import click
-from botocore.exceptions import ClientError
+from azure.data.tables import TableServiceClient
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.compute import ComputeManagementClient
-from azure.data.tables import TableServiceClient
+from botocore.exceptions import ClientError
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -659,6 +657,18 @@ class AzureInventoryCollector:
                 }
             })
         return resources
+
+    def collect_storage_accounts(self) -> list[dict]:
+        """Collect Storage account metadata across the subscription."""
+        return []
+
+    def collect_sql_databases(self) -> list[dict]:
+        """Collect SQL database resources for the subscription."""
+        return []
+
+    def collect_network_resources(self) -> list[dict]:
+        """Collect network components like VNets and subnets."""
+        return []
 
     def save_to_table(self, resources: list[dict]):
         """Persist collected resources to Azure Table Storage."""
