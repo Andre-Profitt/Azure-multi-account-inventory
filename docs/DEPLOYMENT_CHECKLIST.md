@@ -79,7 +79,7 @@ aws cloudformation deploy \
      --location eastus \
      --template-file infrastructure/main.bicep
    # or simply run the helper script
-   ./deploy_azure.sh
+   ./scripts/deploy-azure.sh
    ```
 4. **Deploy infrastructure**:
    ```bash
@@ -151,7 +151,7 @@ AZURE_LOCATION=eastus
 
 1. **Deploy DynamoDB**:
    ```bash
-   ./scripts/deploy.sh central
+   ./deploy.sh central
    ```
 
 2. **Build Lambda packages**:
@@ -161,7 +161,7 @@ AZURE_LOCATION=eastus
 
 3. **Deploy Lambda**:
    ```bash
-   ./scripts/deploy.sh lambda
+   ./deploy.sh lambda
    ```
 
 - [ ] DynamoDB table created
