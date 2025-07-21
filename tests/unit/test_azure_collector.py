@@ -31,6 +31,14 @@ class TestAzureInventoryCollector(unittest.TestCase):
         self.assertEqual(res['account_id'], 'sub123')
         self.assertEqual(res['region'], 'eastus')
 
+    @patch('collector.enhanced_main.DefaultAzureCredential')
+    @patch('collector.enhanced_main.ComputeManagementClient')
+    def test_estimate_network_cost(self, mock_compute_client, mock_cred):
+        collector = AzureInventoryCollector('sub123')
+        metrics = {'data_processed_gb': 100}
+        cost = collector.estimate_network_cost(metrics)
+        self.assertEqual(cost, 1.0)
+
     @patch('collector.enhanced_main.TableServiceClient')
     @patch('collector.enhanced_main.DefaultAzureCredential')
     @patch('collector.enhanced_main.ComputeManagementClient')
