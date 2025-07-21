@@ -1,19 +1,53 @@
 name: CI
+
 on:
   push:
     branches: [main]
+    tags: ['*']
   pull_request:
     branches: [main]
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    - run: |
-        pip install -r requirements.txt
-        pip install pytest
-    - run: pytest tests/ || echo "No tests yet"
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install mypy
+
+      - name: Run Ruff
+        run: ruff check .
+
+      - name: Run Mypy
+        run: mypy src/
+
+      - name: Run Bandit
+        run: bandit -r . -c audit/configs/bandit.yaml
+
+      - name: Run Tests
+        run: pytest -m "not aws"
+
+      - name: Build Bicep
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+        run: az bicep build --file infrastructure/main.bicep
+
+      - name: Azure What-If Deployment
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+        run: az deployment sub create --location eastus --template-file infrastructure/main.bicep --what-if
