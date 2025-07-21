@@ -161,7 +161,7 @@ echo "==============================="
 
 check 29 "Lambda build script exists" "file_exists scripts/build-lambda.sh || file_exists scripts/build-lambda-enhanced.sh"
 check 30 "Build script is executable" "[ -x scripts/build-lambda.sh ] || [ -x scripts/build-lambda-enhanced.sh ]"
-check 31 "Deploy script exists" "file_exists deploy.sh || file_exists scripts/deploy.sh || file_exists scripts/deploy-all.sh"
+check 31 "Deploy script exists" "file_exists deploy.sh || file_exists scripts/deploy-all.sh"
 check 32 "CloudFormation template" "file_exists infrastructure/cloudformation.yaml || file_exists cloudformation/*.yaml"
 check 33 "Terraform files" "file_exists terraform/main.tf || file_exists terraform/*.tf" "WARNING"
 check 34 "Lambda layer configuration" "grep_check 'lambda-layer\|dependencies' scripts/build-lambda*.sh"

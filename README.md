@@ -77,7 +77,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## Optional Azure Deployment
 To inventory Azure resources, set `CLOUD_PROVIDER=azure` and provide the Azure subscription variables. A helper script is included:
 ```bash
-./deploy_azure.sh
+./scripts/deploy-azure.sh
 ```
 This script creates the Function App, Cosmos DB, and Event Grid trigger. Refer to the [deployment checklist](docs/DEPLOYMENT_CHECKLIST.md) for the full list of required roles and variables.
 
