@@ -57,12 +57,17 @@ aws cloudformation deploy \
    ```bash
    az login
    ```
-2. **Deploy Bicep templates**:
+2. **Run the Azure deployment script**:
+   ```bash
+   chmod +x scripts/deploy-azure.sh
+   ./scripts/deploy-azure.sh
+   ```
+   This packages the Functions code, deploys the Bicep templates and triggers the first collection.
+3. **Deploy Bicep templates manually** (optional):
    ```bash
    az deployment sub create -f infrastructure/main.bicep -l eastus
    ```
-
-3. **Deploy infrastructure**:
+4. **Deploy infrastructure**:
    ```bash
    make deploy
    # OR step by step:

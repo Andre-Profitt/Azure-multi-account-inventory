@@ -159,6 +159,10 @@ chmod +x deploy.sh
 # Run full deployment
 ./deploy.sh
 
+# For Azure deployments
+chmod +x scripts/deploy-azure.sh
+./scripts/deploy-azure.sh
+
 # The script will:
 # - Check prerequisites
 # - Create S3 artifacts bucket
