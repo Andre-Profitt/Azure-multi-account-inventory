@@ -97,12 +97,15 @@ This script creates the Function App, Cosmos DB, and Event Grid trigger. Refer t
 
 ### Azure Quick Start
 ```bash
-cp config/azure_subscriptions.json config/azure_subscriptions.json
+cp config/azure_subscriptions.json.example config/azure_subscriptions.json
 export COSMOS_URL="https://your-account.documents.azure.com:443/"
 POETRY run python -m src.azure_collect --config config/azure_subscriptions.json
 ```
-The collector supports filters defined in `azure_subscriptions.json` and produces
-the same JSON schema as the AWS collector.
+The asynchronous collector in `src/azure_collect.py` queries Azure Resource Graph
+concurrently across subscriptions. Configuration values in
+`config/azure_subscriptions.json` control which resource types are returned,
+apply tag-based filters, and exclude regions. The resulting JSON matches the AWS
+inventory schema.
 
 Example Resource Graph query to list unattached disks:
 `Resources | where type =~ 'Microsoft.Compute/disks' | where properties.diskState == 'Unattached' | where properties.timeCreated < ago(30d)`
@@ -142,7 +145,8 @@ EXTERNAL_ID=inventory-collector
 }
 ```
 
-For Azure deployments, create `config/azure_subscriptions.json`:
+For Azure deployments, copy `config/azure_subscriptions.json.example` to
+`config/azure_subscriptions.json` and adjust as needed:
 ```json
 {
   "subscriptions": {
