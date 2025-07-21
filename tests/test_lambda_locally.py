@@ -8,12 +8,13 @@ import pytest
 
 pytestmark = pytest.mark.integration
 
-# Add src to path
+# Add project root and src directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
 
 def test_lambda_handler():
     """Test the Lambda handler locally"""
-    from src.lambda.handler import lambda_handler
+    from src.handler import lambda_handler
     
     # Test event
     test_event = {
