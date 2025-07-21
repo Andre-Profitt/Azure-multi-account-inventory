@@ -30,7 +30,7 @@ Repository = "https://github.com/yourusername/aws-multi-account-inventory.git"
 Issues = "https://github.com/yourusername/aws-multi-account-inventory/issues"
 
 [tool.setuptools]
-packages = ["src", "src.collector", "src.query"]
+packages = ["src", "src.collector", "src.query", "src.analysis"]
 
 [tool.setuptools.package-data]
 "*" = ["*.yaml", "*.yml", "*.json", "*.toml"]
