@@ -71,7 +71,7 @@ class AWSInventoryCollector:
             logger.info(f"Loaded {len(self.accounts)} active accounts from config")
 
     def assume_role(self, account_id: str, role_name: str = 'InventoryRole',
-                    session_name: str = None) -> boto3.Session:
+                    session_name: str | None = None) -> boto3.Session:
         """Assume role in target account with retry logic"""
         if not session_name:
             session_name = f'inventory-{datetime.now().strftime("%Y%m%d%H%M%S")}'
