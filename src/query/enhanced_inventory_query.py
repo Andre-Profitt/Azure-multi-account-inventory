@@ -15,6 +15,8 @@ import boto3
 import click
 import pandas as pd
 from tabulate import tabulate
+from azure.data.tables import TableServiceClient
+from azure.identity import DefaultAzureCredential
 
 
 class InventoryQuery:
@@ -259,6 +261,21 @@ class InventoryQuery:
             return self.get_all_items(filter_expression)
 
         return self.get_all_items()
+
+
+class AzureInventoryQuery:
+    """Query tool for Azure inventory data stored in Table Storage"""
+
+    def __init__(self, table_url: str, table_name: str):
+        credential = DefaultAzureCredential()
+        service = TableServiceClient(endpoint=table_url, credential=credential)
+        self.table = service.get_table_client(table_name)
+
+    def get_all_items(self) -> List[Dict]:
+        entities = []
+        for entity in self.table.list_entities():
+            entities.append(dict(entity))
+        return entities
 
     def export_to_csv(self, filename: str, resources: List[Dict]):
         """Export resources to CSV file"""

@@ -38,3 +38,4 @@ checkov>=3.0.0
 
 # AWS Tools
 awscli>=1.29.0
+azure-cli>=2.55.0

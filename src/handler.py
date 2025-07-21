@@ -8,8 +8,8 @@ UTC = timezone.utc
 
 import boto3
 
-from collector.enhanced_main import AWSInventoryCollector
-from query.enhanced_inventory_query import InventoryQuery
+from collector.enhanced_main import AWSInventoryCollector, AzureInventoryCollector
+from query.enhanced_inventory_query import InventoryQuery, AzureInventoryQuery
 
 # AWS clients will be initialized when needed
 sns = None
@@ -94,9 +94,13 @@ def lambda_handler(event, context):
 def handle_collection(event, context, start_time):
     """Handle inventory collection"""
     # Initialize collector
-    collector = AWSInventoryCollector(
-        table_name=os.environ.get('DYNAMODB_TABLE_NAME', 'aws-inventory')
-    )
+    if os.environ.get('CLOUD_PROVIDER') == 'azure':
+        subscription_id = os.environ.get('AZURE_SUBSCRIPTION_ID')
+        collector = AzureInventoryCollector(subscription_id)
+    else:
+        collector = AWSInventoryCollector(
+            table_name=os.environ.get('DYNAMODB_TABLE_NAME', 'aws-inventory')
+        )
 
     # Load configuration
     config_path = os.environ.get('CONFIG_PATH', '/opt/config/accounts.json')
@@ -189,9 +193,14 @@ def handle_cost_analysis(event, context):
     """Handle cost analysis and reporting"""
     print("Starting cost analysis")
 
-    query = InventoryQuery(
-        table_name=os.environ.get('DYNAMODB_TABLE_NAME', 'aws-inventory')
-    )
+    if os.environ.get('CLOUD_PROVIDER') == 'azure':
+        table_url = os.environ.get('AZURE_TABLE_URL')
+        table_name = os.environ.get('AZURE_TABLE_NAME', 'inventory')
+        query = AzureInventoryQuery(table_url, table_name)
+    else:
+        query = InventoryQuery(
+            table_name=os.environ.get('DYNAMODB_TABLE_NAME', 'aws-inventory')
+        )
     analysis = query.get_cost_analysis()
 
     # Calculate total monthly cost
@@ -260,9 +269,14 @@ def handle_security_check(event, context):
     """Handle security compliance check"""
     print("Starting security compliance check")
 
-    query = InventoryQuery(
-        table_name=os.environ.get('DYNAMODB_TABLE_NAME', 'aws-inventory')
-    )
+    if os.environ.get('CLOUD_PROVIDER') == 'azure':
+        table_url = os.environ.get('AZURE_TABLE_URL')
+        table_name = os.environ.get('AZURE_TABLE_NAME', 'inventory')
+        query = AzureInventoryQuery(table_url, table_name)
+    else:
+        query = InventoryQuery(
+            table_name=os.environ.get('DYNAMODB_TABLE_NAME', 'aws-inventory')
+        )
     analysis = query.get_cost_analysis()
 
     # Count security issues
@@ -341,9 +355,14 @@ def handle_cleanup(event, context):
     """Handle stale resource cleanup"""
     print("Starting stale resource check")
 
-    query = InventoryQuery(
-        table_name=os.environ.get('DYNAMODB_TABLE_NAME', 'aws-inventory')
-    )
+    if os.environ.get('CLOUD_PROVIDER') == 'azure':
+        table_url = os.environ.get('AZURE_TABLE_URL')
+        table_name = os.environ.get('AZURE_TABLE_NAME', 'inventory')
+        query = AzureInventoryQuery(table_url, table_name)
+    else:
+        query = InventoryQuery(
+            table_name=os.environ.get('DYNAMODB_TABLE_NAME', 'aws-inventory')
+        )
 
     days = event.get('days', 90)
     stale_resources = query.get_stale_resources(days)

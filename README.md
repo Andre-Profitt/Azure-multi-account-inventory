@@ -27,6 +27,12 @@ This enhanced system automatically discovers and catalogs AWS resources across m
                       └─────────────────┘                          └──────────────┘
 ```
 
+## Azure Support
+
+The collector can now run against Azure subscriptions. Set the environment variable
+`CLOUD_PROVIDER=azure` and provide `AZURE_SUBSCRIPTION_ID` along with table configuration.
+Resources will be gathered using Azure Functions, Cosmos DB, and Monitor equivalents.
+
 ## Features
 
 ### Core Features
