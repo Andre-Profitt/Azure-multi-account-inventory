@@ -234,7 +234,7 @@ Resources:
     Properties:
       FunctionName: !Sub '${AWS::StackName}-collector'
       Runtime: python3.9
-      Handler: src.lambda.enhanced_handler.lambda_handler
+        Handler: handler.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
