@@ -10,6 +10,15 @@
 - [ ] **Target account IDs** collected
 - [ ] **Deployment method chosen**: Terraform or CloudFormation
 - [ ] **Azure deployment scripts reviewed**
+- [ ] **Azure role assignments defined**
+
+### Required Azure Permissions
+
+Assign these roles to the Function App's managed identity:
+- **Reader** on each subscription
+- **Cosmos DB Account Reader Role** on the Cosmos DB account
+- **EventGrid Contributor** on the resource group
+- **Monitoring Reader** for Azure Monitor
 
 ## Phase 1: Target Account Setup
 
@@ -79,8 +88,64 @@ aws cloudformation deploy \
    cd terraform
    terraform init
    terraform plan
-   terraform apply
+    terraform apply
+    ```
+
+#### Architecture Diagram
+
+```
+┌────────────┐     ┌────────────────┐     ┌─────────────┐
+│ Event Grid │───▶│ Azure Function  │───▶│  Cosmos DB   │
+│ (Schedule) │    │  Collector      │    │  Inventory   │
+└────────────┘     └───────┬────────┘     └───────┬─────┘
+                            │                    │
+                            ▼                    ▼
+                     ┌────────────┐      ┌──────────────┐
+                     │ Log Groups │      │ Azure Monitor│
+                     └────────────┘      └──────────────┘
+```
+
+#### Step-by-Step Setup
+
+1. **Create resource group**
+   ```bash
+   az group create -n inventory-rg -l eastus
    ```
+2. **Create Cosmos DB (Mongo API)**
+   ```bash
+   az cosmosdb create -n inventory-cosmos -g inventory-rg --kind MongoDB
+   az cosmosdb mongodb database create -a inventory-cosmos -n inventory
+   ```
+3. **Deploy Function App**
+   ```bash
+   az functionapp create -n inventory-func -g inventory-rg \
+     --consumption-plan-location eastus --runtime python --functions-version 4
+   ```
+4. **Configure Event Grid**
+   ```bash
+   az eventgrid event-subscription create \
+     --name inventory-schedule \
+     --source-resource-id "/subscriptions/$AZURE_SUBSCRIPTION_ID" \
+     --endpoint-type azurefunction \
+     --endpoint "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/inventory-rg/providers/Microsoft.Web/sites/inventory-func"
+   ```
+5. **Setup Azure Monitor alert**
+   ```bash
+   az monitor metrics alert create -n inventory-func-failures -g inventory-rg \
+     --scopes /subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/inventory-rg/providers/Microsoft.Web/sites/inventory-func \
+     --condition "count Http5xx >= 1"
+   ```
+
+#### Azure Environment Variables
+
+```bash
+CLOUD_PROVIDER=azure
+AZURE_SUBSCRIPTION_ID=<subscription>
+AZURE_RESOURCE_GROUP=inventory-rg
+AZURE_COSMOS_DB_NAME=inventory
+AZURE_FUNCTION_APP=inventory-func
+AZURE_LOCATION=eastus
+```
 
 ### Using CloudFormation:
 
@@ -233,6 +298,20 @@ aws sts assume-role \
 # Force immediate collection
 aws events put-events \
   --entries '[{"Source":"manual","DetailType":"trigger","Detail":"{}"}]'
+```
+
+### Azure Troubleshooting
+
+```bash
+# Check Function App logs
+az functionapp log tail -n inventory-func -g inventory-rg
+
+# Verify Cosmos DB connection
+az cosmosdb keys list -g inventory-rg -n inventory-cosmos --type connection-strings
+
+# Inspect Event Grid subscription
+az eventgrid event-subscription show -n inventory-schedule \
+  --source-resource-id "/subscriptions/$AZURE_SUBSCRIPTION_ID"
 ```
 
 ## Rollback Plan

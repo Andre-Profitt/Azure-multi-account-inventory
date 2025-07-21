@@ -29,9 +29,76 @@ This enhanced system automatically discovers and catalogs AWS resources across m
 
 ## Azure Support
 
-The collector can now run against Azure subscriptions. Set the environment variable
-`CLOUD_PROVIDER=azure` and provide `AZURE_SUBSCRIPTION_ID` along with table configuration.
-Resources will be gathered using Azure Functions, Cosmos DB, and Monitor equivalents.
+The collector can also run against Azure subscriptions. Set the environment variable
+`CLOUD_PROVIDER=azure` and provide `AZURE_SUBSCRIPTION_ID` with the resource group and
+Cosmos DB configuration. Resources are gathered using Azure Functions, Cosmos DB, Event
+Grid, and Azure Monitor.
+
+### Azure Architecture
+
+```
+┌────────────┐     ┌────────────────┐     ┌─────────────┐
+│ Event Grid │───▶│ Azure Function  │───▶│  Cosmos DB   │
+│ (Schedule) │    │  Collector      │    │  Inventory   │
+└────────────┘     └───────┬────────┘     └───────┬─────┘
+                            │                    │
+                            │                    ▼
+                            │            ┌────────────┐
+                            └──────────▶ │ Azure      │
+                                         │ Monitor    │
+                                         └────────────┘
+```
+
+### Required Azure Permissions
+
+Assign the following roles to the Function App's managed identity:
+
+- **Reader** on the subscription to discover resources
+- **Cosmos DB Account Reader Role** on the Cosmos DB account
+- **EventGrid Contributor** to create event subscriptions
+- **Monitoring Reader** for metrics and logs
+
+### Azure Setup Steps
+
+1. **Create resource group**
+   ```bash
+   az group create -n inventory-rg -l eastus
+   ```
+2. **Create Cosmos DB account and database**
+   ```bash
+   az cosmosdb create -n inventory-cosmos -g inventory-rg --kind MongoDB
+   az cosmosdb mongodb database create -a inventory-cosmos -n inventory
+   ```
+3. **Create Function App**
+   ```bash
+   az functionapp create -n inventory-func -g inventory-rg \
+     --consumption-plan-location eastus --runtime python --functions-version 4
+   ```
+4. **Create Event Grid subscription**
+   ```bash
+   az eventgrid event-subscription create \
+     --name inventory-schedule \
+     --source-resource-id "/subscriptions/$AZURE_SUBSCRIPTION_ID" \
+     --endpoint-type azurefunction \
+     --endpoint "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/inventory-rg/providers/Microsoft.Web/sites/inventory-func"
+   ```
+5. **Configure Azure Monitor alerts**
+   ```bash
+   az monitor metrics alert create -n inventory-func-failures -g inventory-rg \
+     --scopes /subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/inventory-rg/providers/Microsoft.Web/sites/inventory-func \
+     --condition "count Http5xx >= 1"
+   ```
+
+### Azure Environment Variables
+
+```bash
+CLOUD_PROVIDER=azure
+AZURE_SUBSCRIPTION_ID=<subscription>
+AZURE_RESOURCE_GROUP=inventory-rg
+AZURE_COSMOS_DB_NAME=inventory
+AZURE_FUNCTION_APP=inventory-func
+AZURE_LOCATION=eastus
+```
 
 ## Features
 
@@ -679,6 +746,29 @@ aws cloudwatch get-metric-statistics \
 - Reduce collection frequency
 - Limit resource types
 - Enable S3 lifecycle policies
+
+### Azure Specific Issues
+
+#### Function App Fails to Trigger
+```bash
+az functionapp log tail -n inventory-func
+```
+Ensure the Event Grid subscription is delivering events and that the function has
+the correct managed identity permissions.
+
+#### Cosmos DB Connection Errors
+```bash
+az cosmosdb keys list -g inventory-rg -n inventory-cosmos --type connection-strings
+```
+Verify the connection string in your environment variables and that the firewall
+allows access from the Function App.
+
+#### Missing Metrics in Monitor
+```bash
+az monitor metrics list --resource /subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/inventory-rg/providers/Microsoft.Web/sites/inventory-func
+```
+Check that the Metrics extension is installed on the Function App and that the
+application insights resource is linked correctly.
 
 ## Security
 
