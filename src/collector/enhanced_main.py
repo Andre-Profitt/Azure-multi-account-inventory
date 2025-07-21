@@ -1,24 +1,24 @@
 import json
-import logging
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import as_completed
-from datetime import datetime, timedelta, timezone
-UTC = timezone.utc
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import boto3
 import click
-from botocore.exceptions import ClientError
+import structlog
+from azure.data.tables import TableServiceClient
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.compute import ComputeManagementClient
-from azure.mgmt.sql import SqlManagementClient
 from azure.mgmt.core.tools import parse_resource_id
-from azure.data.tables import TableServiceClient
+from azure.mgmt.sql import SqlManagementClient
+from botocore.exceptions import ClientError
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from common.logger import configure_logging
+
+configure_logging()
+logger = structlog.get_logger(__name__)
 
 
 class AWSInventoryCollector:
@@ -175,7 +175,11 @@ class AWSInventoryCollector:
                             'attributes': {
                                 'instance_type': instance.get('InstanceType'),
                                 'state': instance.get('State', {}).get('Name'),
-                                'launch_time': instance.get('LaunchTime', '').isoformat() if instance.get('LaunchTime') else None,
+                                'launch_time': (
+                                    instance.get('LaunchTime', '').isoformat()
+                                    if instance.get('LaunchTime')
+                                    else None
+                                ),
                                 'platform': instance.get('Platform', 'linux'),
                                 'vpc_id': instance.get('VpcId'),
                                 'subnet_id': instance.get('SubnetId'),
@@ -224,7 +228,11 @@ class AWSInventoryCollector:
                             'storage_encrypted': instance.get('StorageEncrypted', False),
                             'multi_az': instance.get('MultiAZ', False),
                             'vpc_id': instance.get('DBSubnetGroup', {}).get('VpcId'),
-                            'create_time': instance.get('InstanceCreateTime', '').isoformat() if instance.get('InstanceCreateTime') else None,
+                            'create_time': (
+                                instance.get('InstanceCreateTime', '').isoformat()
+                                if instance.get('InstanceCreateTime')
+                                else None
+                            ),
                             'backup_retention': instance.get('BackupRetentionPeriod'),
                             'tags': {tag['Key']: tag['Value'] for tag in instance.get('TagList', [])}
                         },
@@ -287,8 +295,12 @@ class AWSInventoryCollector:
                     'region': 'global',
                     'timestamp': datetime.now(UTC).isoformat(),
                     'attributes': {
-                        'creation_date': bucket.get('CreationDate', '').isoformat() if bucket.get('CreationDate') else None,
-                        'tags': {}
+                        'creation_date': (
+                            bucket.get('CreationDate', '').isoformat()
+                            if bucket.get('CreationDate')
+                            else None
+                        ),
+                        'tags': {},
                     }
                 }
 
@@ -578,7 +590,10 @@ class AWSInventoryCollector:
         with self.table.batch_writer() as batch:
             for resource in resources:
                 # Create pk/sk pattern for better querying
-                pk = f"{resource['resource_type']}#{resource['account_id']}#{resource.get('region', 'global')}#{resource['resource_id']}"
+                pk = (
+                    f"{resource['resource_type']}#{resource['account_id']}#"
+                    f"{resource.get('region', 'global')}#{resource['resource_id']}"
+                )
                 sk = resource['timestamp']
 
                 item = {
@@ -664,7 +679,11 @@ class AzureInventoryCollector:
                 'timestamp': datetime.now(UTC).isoformat(),
                 'attributes': {
                     'vm_size': getattr(vm.hardware_profile, 'vm_size', None),
-                    'os_type': getattr(vm.storage_profile.os_disk, 'os_type', None).value if vm.storage_profile and vm.storage_profile.os_disk else None,
+                    'os_type': (
+                        getattr(vm.storage_profile.os_disk, 'os_type', None).value
+                        if vm.storage_profile and vm.storage_profile.os_disk
+                        else None
+                    ),
                     'tags': vm.tags or {}
                 }
             })
@@ -738,7 +757,7 @@ class AzureInventoryCollector:
 def main(config, table, dry_run, resource_types, debug):
     """AWS Multi-Account Inventory Collector"""
     if debug:
-        logging.getLogger().setLevel(logging.DEBUG)
+        configure_logging('DEBUG')
 
     if os.environ.get('CLOUD_PROVIDER') == 'azure':
         subscription_id = os.environ.get('AZURE_SUBSCRIPTION_ID')
@@ -769,16 +788,18 @@ def main(config, table, dry_run, resource_types, debug):
         summary[resource_type] = summary.get(resource_type, 0) + 1
         total_cost += resource.get('estimated_monthly_cost', 0)
 
-    print("\nInventory Summary:")
-    print("-" * 50)
+    logger.info("Inventory Summary:")
+    logger.info("-" * 50)
     for resource_type, count in sorted(summary.items()):
-        print(f"{resource_type}: {count}")
-    print("-" * 50)
-    print(f"Total resources: {len(resources)}")
-    print(f"Estimated monthly cost: ${total_cost:,.2f}")
+        logger.info(f"{resource_type}: {count}")
+    logger.info("-" * 50)
+    logger.info(f"Total resources: {len(resources)}")
+    logger.info(f"Estimated monthly cost: ${total_cost:,.2f}")
 
     if collector.failed_collections:
-        print(f"\nFailed collections: {len(collector.failed_collections)}")
+        logger.warning(
+            "Failed collections detected", count=len(collector.failed_collections)
+        )
 
 
 if __name__ == '__main__':

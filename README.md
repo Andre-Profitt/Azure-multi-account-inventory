@@ -96,6 +96,7 @@ DYNAMODB_TABLE_NAME=aws-inventory
 SNS_TOPIC_ARN=arn:aws:sns:region:account:topic
 REPORT_BUCKET=aws-inventory-reports
 EXTERNAL_ID=inventory-collector
+LOG_LEVEL=INFO
 ```
 
 ## Configuration File Example
