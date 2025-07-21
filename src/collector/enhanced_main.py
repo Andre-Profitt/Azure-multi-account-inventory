@@ -642,6 +642,13 @@ class AzureInventoryCollector:
         self.compute_client = ComputeManagementClient(self.credential, subscription_id)
         self.table_url = table_url or os.environ.get('AZURE_TABLE_URL')
         self.table_name = table_name or os.environ.get('AZURE_TABLE_NAME', 'inventory')
+        # Simple network cost rate (per GB processed)
+        self.network_rate_per_gb = 0.01
+
+    def estimate_network_cost(self, metrics: dict) -> float:
+        """Estimate network-related costs based on data processed in GB."""
+        data_gb = metrics.get('data_processed_gb', 0)
+        return round(data_gb * self.network_rate_per_gb, 2)
 
     def collect_virtual_machines(self) -> list[dict]:
         resources = []
