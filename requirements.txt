@@ -12,3 +12,4 @@ azure-data-tables>=12.7.0
 azure-mgmt-costmanagement>=4.0.0
 azure-mgmt-resourcegraph>=8.0.0
 azure-cosmos>=4.6.0
+structlog>=24.1.0
