@@ -313,7 +313,7 @@ class AWSInventoryCollector:
 
                 # Get bucket encryption
                 try:
-                    encryption = s3.get_bucket_encryption(Bucket=bucket_name)
+                    s3.get_bucket_encryption(Bucket=bucket_name)
                     bucket_info['attributes']['encryption'] = True
                 except ClientError as e:
                     if e.response['Error']['Code'] == 'ServerSideEncryptionConfigurationNotFoundError':
