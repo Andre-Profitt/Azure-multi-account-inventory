@@ -27,6 +27,17 @@ Parameters:
     Default: '{}'
     Description: JSON configuration for AWS accounts (optional)
 
+  LogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues:
+      - DEBUG
+      - INFO
+      - WARNING
+      - ERROR
+      - CRITICAL
+    Description: Logging level for the Lambda function
+
 Resources:
   # Lambda Execution Role
   LambdaExecutionRole:
@@ -80,6 +91,7 @@ Resources:
         Variables:
           DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
           ACCOUNTS_CONFIG: !Ref AccountsConfig
+          LOG_LEVEL: !Ref LogLevel
       Code:
         ZipFile: |
           import json
