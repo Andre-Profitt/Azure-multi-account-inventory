@@ -39,7 +39,7 @@ resource functionApp 'Microsoft.Web/sites@2022-09-01' = {
       appSettings: [
         {
           name: 'AzureWebJobsStorage'
-          value: storageAccount.properties.primaryEndpoints.blob
+          value: listKeys(storageAccount.id, '2022-09-01').keys[0].value
         }
         {
           name: 'COSMOS_URL'
