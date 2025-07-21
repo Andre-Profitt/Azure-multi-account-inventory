@@ -179,6 +179,13 @@ Failed Accounts:
 Please check CloudWatch logs for more details."""
         )
 
+    if os.environ.get('CLOUD_PROVIDER') == 'azure':
+        try:
+            from analysis import collect_daily_costs
+            collect_daily_costs()
+        except Exception as err:  # pragma: no cover - integration only
+            print(f"Azure cost collection failed: {err}")
+
     # Return success response
     return {
         'statusCode': 200,
