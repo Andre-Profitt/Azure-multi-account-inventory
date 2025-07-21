@@ -59,6 +59,30 @@ class TestAzureInventoryCollector(unittest.TestCase):
         mock_table.upsert_entity.assert_called_once()
         self.assertEqual(len(resources), 1)
 
+    @patch('collector.enhanced_main.DefaultAzureCredential')
+    @patch('collector.enhanced_main.SqlManagementClient')
+    def test_collect_sql_databases_handles_bad_id(self, mock_sql_client, mock_cred):
+        mock_db_good = Mock()
+        mock_db_good.id = '/subscriptions/sub123/resourceGroups/rg1/providers/Microsoft.Sql/servers/srv1/databases/db1'
+        mock_db_good.location = 'eastus'
+        mock_db_good.tags = {'env': 'prod'}
+
+        mock_db_bad = Mock()
+        mock_db_bad.id = 'badformat'
+        mock_db_bad.location = 'westus'
+        mock_db_bad.tags = None
+
+        mock_sql_client.return_value.databases.list_by_subscription.return_value = [
+            mock_db_good, mock_db_bad
+        ]
+
+        collector = AzureInventoryCollector('sub123')
+        resources = collector.collect_sql_databases()
+
+        self.assertEqual(len(resources), 2)
+        self.assertEqual(resources[0]['attributes']['resource_group'], 'rg1')
+        self.assertEqual(resources[1]['attributes']['resource_group'], 'unknown')
+
 
 if __name__ == '__main__':
     unittest.main()

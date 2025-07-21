@@ -13,6 +13,8 @@ import click
 from botocore.exceptions import ClientError
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.compute import ComputeManagementClient
+from azure.mgmt.sql import SqlManagementClient
+from azure.mgmt.core.tools import parse_resource_id
 from azure.data.tables import TableServiceClient
 
 logging.basicConfig(level=logging.INFO)
@@ -640,6 +642,7 @@ class AzureInventoryCollector:
         self.subscription_id = subscription_id
         self.credential = DefaultAzureCredential()
         self.compute_client = ComputeManagementClient(self.credential, subscription_id)
+        self.sql_client = SqlManagementClient(self.credential, subscription_id)
         self.table_url = table_url or os.environ.get('AZURE_TABLE_URL')
         self.table_name = table_name or os.environ.get('AZURE_TABLE_NAME', 'inventory')
 
@@ -656,6 +659,36 @@ class AzureInventoryCollector:
                     'vm_size': getattr(vm.hardware_profile, 'vm_size', None),
                     'os_type': getattr(vm.storage_profile.os_disk, 'os_type', None).value if vm.storage_profile and vm.storage_profile.os_disk else None,
                     'tags': vm.tags or {}
+                }
+            })
+        return resources
+
+    def collect_sql_databases(self) -> list[dict]:
+        """Collect SQL databases and infer the resource group from each ID.
+
+        The Azure ``parse_resource_id`` helper is used to parse the database
+        identifier and extract its ``resource_group``. If the ID cannot be
+        parsed, the resource group defaults to ``'unknown'``. This allows the
+        collector to gracefully handle unexpected ID formats without raising an
+        exception.
+        """
+        resources = []
+        for db in self.sql_client.databases.list_by_subscription():
+            try:
+                parsed = parse_resource_id(db.id or '')
+                resource_group = parsed.get('resource_group', 'unknown')
+            except Exception:
+                resource_group = 'unknown'
+
+            resources.append({
+                'resource_type': 'sql_database',
+                'resource_id': db.id,
+                'account_id': self.subscription_id,
+                'region': db.location,
+                'timestamp': datetime.now(UTC).isoformat(),
+                'attributes': {
+                    'resource_group': resource_group,
+                    'tags': db.tags or {}
                 }
             })
         return resources
