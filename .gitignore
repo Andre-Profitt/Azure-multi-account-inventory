@@ -57,6 +57,7 @@ htmlcov/
 
 # Config
 config/accounts.json
+config/azure_subscriptions.json
 
 # Logs
 *.log
