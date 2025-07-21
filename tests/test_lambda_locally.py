@@ -6,7 +6,7 @@ import sys
 import os
 import pytest
 
-pytest.skip("Local integration test", allow_module_level=True)
+pytestmark = pytest.mark.integration
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
