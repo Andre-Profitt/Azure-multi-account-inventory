@@ -1,0 +1,43 @@
+# Development dependencies
+-r requirements.in
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+respx>=0.20.2
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
+moto>=4.2.0
+coverage>=7.2.0
+
+# Code Quality - Linting & Formatting
+ruff>=0.1.6
+bandit[toml]>=1.7.5
+vulture>=2.10
+safety>=2.3.5
+pip-audit>=2.6.0
+
+# Documentation Quality
+# vale>=2.29.0  # Install via: pip install vale-py
+# markdownlint-cli>=0.37.0  # Install via: npm install -g markdownlint-cli
+textstat>=0.7.3
+sphinx>=4.0.0
+sphinx-autodoc-typehints>=1.12.0
+
+# Pre-commit and Security
+pre-commit>=3.5.0
+detect-secrets>=1.4.0
+
+# Development Tools
+pip-tools>=7.3.0
+ipython>=8.15.0
+matplotlib>=3.7.0
+jupyter>=1.0.0
+
+# Infrastructure Scanning
+cfn-lint>=0.83.0
+checkov>=3.0.0
+
+# AWS Tools
+awscli>=1.29.0
+azure-cli>=2.55.0
