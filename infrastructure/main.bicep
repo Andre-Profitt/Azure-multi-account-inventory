@@ -106,7 +106,7 @@ resource collectorFunction 'Microsoft.Web/sites/functions@2022-09-01' = {
           schedule: '0 0 * * * *'
         }
       ]
-      scriptFile: 'collector/index.js'
+      scriptFile: 'azure_function_main.py'
     }
   }
 }
@@ -129,7 +129,7 @@ resource queryFunction 'Microsoft.Web/sites/functions@2022-09-01' = {
           name: 'res'
         }
       ]
-      scriptFile: 'query/index.js'
+      scriptFile: 'query/enhanced_inventory_query.py'
     }
   }
 }
