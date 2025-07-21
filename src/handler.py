@@ -144,7 +144,7 @@ def handle_collection(event, context, start_time):
         send_metric(f'Resources_{resource_type}', count)
 
     # Send cost metric
-    send_metric('TotalMonthlyCost', total_cost, 'None')
+    send_metric('TotalMonthlyCost', total_cost)
 
     # Log summary
     summary = {
@@ -209,7 +209,7 @@ def handle_cost_analysis(event, context):
     total_cost = analysis.get('total_monthly_cost', 0)
 
     # Send cost metrics
-    send_metric('TotalMonthlyCost', total_cost, 'None')
+    send_metric('TotalMonthlyCost', total_cost)
     send_metric('ExpensiveResources', len(analysis.get('top_expensive_resources', [])))
     send_metric('IdleResources', len(analysis.get('idle_resources', [])))
     send_metric('UnencryptedResources', len(analysis.get('unencrypted_resources', [])))
