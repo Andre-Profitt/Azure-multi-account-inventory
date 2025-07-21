@@ -333,6 +333,7 @@ resource "aws_lambda_function" "inventory_collector" {
       COST_ALERT_THRESHOLD = var.cost_alert_threshold
       REPORTS_S3_BUCKET   = aws_s3_bucket.reports.id
       ENVIRONMENT         = var.environment
+      LOG_LEVEL           = var.log_level
     }
   }
   

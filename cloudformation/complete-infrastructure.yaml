@@ -38,6 +38,17 @@ Parameters:
     MinValue: 512
     MaxValue: 3008
     Description: Lambda memory in MB
+
+  LogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues:
+      - DEBUG
+      - INFO
+      - WARNING
+      - ERROR
+      - CRITICAL
+    Description: Logging level for the Lambda function
   
   EnableEnhancedMonitoring:
     Type: String
@@ -248,6 +259,7 @@ Resources:
           COST_ALERT_THRESHOLD: !Ref CostAlertThreshold
           REPORTS_S3_BUCKET: !Ref ReportsBucket
           ENVIRONMENT: !Ref Environment
+          LOG_LEVEL: !Ref LogLevel
       Code:
         S3Bucket: !Ref DeploymentBucket
         S3Key: lambda-deployment.zip

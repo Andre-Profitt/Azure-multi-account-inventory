@@ -87,6 +87,12 @@ variable "external_id" {
   default     = "inventory-collector"
 }
 
+variable "log_level" {
+  description = "Logging level for the Lambda function"
+  type        = string
+  default     = "INFO"
+}
+
 variable "tags" {
   description = "Additional tags to apply to all resources"
   type        = map(string)

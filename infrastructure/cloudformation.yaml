@@ -46,6 +46,17 @@ Parameters:
     Description: Schedule expression for stale resource checks
     Default: 'cron(0 6 1 * ? *)'  # Monthly on the 1st at 6 AM UTC
 
+  LogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues:
+      - DEBUG
+      - INFO
+      - WARNING
+      - ERROR
+      - CRITICAL
+    Description: Logging level for the Lambda function
+
 Conditions:
   HasSlackWebhook: !Not [!Equals [!Ref SlackWebhookUrl, '']]
 
@@ -271,6 +282,7 @@ Resources:
           MONTHLY_COST_THRESHOLD: !Ref MonthlyCostThreshold
           EXTERNAL_ID: !Ref ExternalId
           CONFIG_PATH: /opt/config/accounts.json
+          LOG_LEVEL: !Ref LogLevel
       Tags:
         - Key: Application
           Value: AWS-Inventory
